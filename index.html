@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyperlocal Delivery - User Side</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; text-align: center; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        button { background-color: #28a745; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        button:disabled { background-color: #ccc; }
+        .store-list { text-align: left; margin-top: 20px; }
+        .store-item { background: #e9ecef; padding: 12px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; }
+        .distance { color: #dc3545; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>🚀 Quick Delivery</h1>
+
+    <div class="card">
+        <h3>📍 Apni Location Share Karein</h3>
+        <button id="locBtn" onclick="getUserLocation()">Live Location Fetch Karo</button>
+        <p id="status" style="color: blue; font-weight: bold;"></p>
+    </div>
+
+    <div class="card">
+        <h3>🏪 Aapke Paas Ki Dukanein</h3>
+        <div id="storeList" class="store-list">Location fetch hote hi list dikhegi...</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // 🔥 APNI FIREBASE CONFIG YAHAN PASTE KARO
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let userLat, userLng;
+
+        // 🗺️ STEP 2 & 3: Live Location aur Nearest Store Logic
+        window.getUserLocation = function() {
+            const status = document.getElementById('status');
+            if (!navigator.geolocation) {
+                status.innerText = "Aapka browser location support nahi karta!";
+                return;
+            }
+
+            status.innerText = "Location dhoodh raha hai... ⏱️";
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                userLat = position.coords.latitude;
+                userLng = position.coords.longitude;
+                status.innerText = `Mila! Lat: ${userLat.toFixed(4)}, Lng: ${userLng.toFixed(4)}`;
+                
+                // Location milte hi stores dhoondho
+                await findNearestStores(userLat, userLng);
+            }, () => {
+                status.innerText = "Location permission nahi mili! ❌";
+            });
+        }
+
+        // 🧮 Haversine Formula (Distance Calculate karne ke liye)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth ka radius KM me
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // Distance KM me
+        }
+
+        // 🏪 Database se Stores uthakar compare karna
+        async function findNearestStores(uLat, uLng) {
+            const storeListDiv = document.getElementById('storeList');
+            storeListDiv.innerText = "Aapke paas ke stores search ho rahe hain... 🔍";
+
+            try {
+                const querySnapshot = await getDocs(collection(db, "stores"));
+                let stores = [];
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    // Har store ka distance nikalo user se
+                    const distance = calculateDistance(uLat, uLng, data.lat, data.lng);
+                    
+                    // Agar store 3 KM ke andar hai toh list me daalo
+                    if (distance <= 3) { 
+                        stores.push({ id: doc.id, ...data, distance: distance });
+                    }
+                });
+
+                // Sabse kam distance wale ko sabse upar karo (Sorting)
+                stores.sort((a, b) => a.distance - b.distance);
+
+                // Screen par dikhao
+                if (stores.length === 0) {
+                    storeListDiv.innerText = "Afsos! 3km ke daayre me koi store nahi mila. 📍";
+                    return;
+                }
+
+                storeListDiv.innerHTML = "";
+                stores.forEach(store => {
+                    // Distance ko meters ya KM me convert karne ke liye
+                    let distText = store.distance < 1 ? 
+                        `${(store.distance * 1000).toFixed(0)} meters` : 
+                        `${store.distance.toFixed(2)} KM`;
+
+                    storeListDiv.innerHTML += `
+                        <div class="store-item">
+                            <div>
+                                <strong>${store.storeName}</strong><br>
+                                <small>Owner: ${store.ownerName}</small>
+                            </div>
+                            <div class="distance">${distText} door</div>
+                        </div>
+                    `;
+                });
+
+            } catch (error) {
+                console.error(error);
+                storeListDiv.innerText = "Database se connect karne me error aaya!";
+            }
+        }
+    </script>
+</body>
+</html>
