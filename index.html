@@ -3,141 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hyperlocal Delivery - User Side</title>
+    <title>Quick Delivery - Account Portal</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; text-align: center; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        button { background-color: #28a745; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
-        button:disabled { background-color: #ccc; }
-        .store-list { text-align: left; margin-top: 20px; }
-        .store-item { background: #e9ecef; padding: 12px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; }
-        .distance { color: #dc3545; font-weight: bold; }
+        body { 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #0d2b45, #203c56, #3c5a78); 
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .brand-logo {
+            font-size: 32px;
+            font-weight: 900;
+            color: #f7d100; 
+            background: #1c1c1c;
+            padding: 5px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        .brand-logo span { color: #fff; }
+
+        .auth-card { 
+            background: white; 
+            padding: 35px 30px; 
+            border-radius: 24px; 
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15); 
+            width: 100%;
+            max-width: 400px; 
+            box-sizing: border-box;
+            border: 1px solid #eaeaea;
+            text-align: center;
+        }
+
+        h2 { margin: 0 0 8px 0; color: #1c1c1c; font-size: 22px; font-weight: 700; }
+        p { margin: 0 0 25px 0; color: #666; font-size: 14px; }
+
+        .form-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; font-size: 13px; }
+
+        input, textarea { 
+            width: 100%; 
+            padding: 14px; 
+            background: #f4f6f9;
+            border: 1px solid #e2e8f0; 
+            border-radius: 12px; 
+            box-sizing: border-box; 
+            font-size: 15px; 
+            color: #1a202c;
+            transition: all 0.2s ease;
+        }
+        input:focus, textarea:focus {
+            border-color: #f7d100;
+            background: #fff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(247, 209, 0, 0.2);
+        }
+        textarea { resize: none; height: 75px; }
+
+        .btn-brand { 
+            background: #1c1c1c; 
+            color: #f7d100; 
+            border: none; 
+            padding: 16px; 
+            font-size: 16px; 
+            border-radius: 14px; 
+            cursor: pointer; 
+            font-weight: 700; 
+            width: 100%; 
+            margin-top: 10px; 
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+        }
+
+        .toggle-link {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #0d2b45;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: underline;
+            display: inline-block;
+        }
+
+        #status { 
+            color: #fff; 
+            font-weight: 600; 
+            text-align: center; 
+            margin-top: 15px; 
+            font-size: 14px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body>
 
-    <h1>🚀 Quick Delivery</h1>
+    <div class="brand-logo">Quick<span>delivery</span></div>
 
-    <div class="card">
-        <h3>📍 Apni Location Share Karein</h3>
-        <button id="locBtn" onclick="getUserLocation()">Live Location Fetch Karo</button>
-        <p id="status" style="color: blue; font-weight: bold;"></p>
-    </div>
+    <div class="auth-card">
+        <h2 id="formTitle">Welcome to Delivery!</h2>
+        <p id="formSubTitle">Let's get your details for lightning-fast orders</p>
+        
+        <form id="authForm" onsubmit="handleAuth(event)">
+            <div class="form-group" id="nameGroup">
+                <label>👤 AAPKA NAAM (FULL NAME)</label>
+                <input type="text" id="userName" placeholder="e.g. Adnan Khan">
+            </div>
 
-    <div class="card">
-        <h3>🏪 Aapke Paas Ki Dukanein</h3>
-        <div id="storeList" class="store-list">Location fetch hote hi list dikhegi...</div>
+            <div class="form-group">
+                <label>📞 MOBILE NUMBER</label>
+                <input type="tel" id="userPhone" placeholder="e.g. 9236099823" required>
+            </div>
+
+            <div class="form-group" id="addressGroup">
+                <label>📍 DELIVERY ADDRESS</label>
+                <textarea id="userAddress" placeholder="Flat/House No, Gali, Landmark, Kanpur"></textarea>
+            </div>
+
+            <button type="submit" id="submitBtn">Continue to Dashboard</button>
+        </form>
+
+        <div class="toggle-link" id="toggleModeBtn" onclick="toggleMode()">Already have an account? Login Here</div>
+        <p id="status"></p>
     </div>
 
     <script type="module">
-        // 🌐 Browser ke liye sahi CDN Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // 🔥 Aapki Asli Firebase Config Keys
         const firebaseConfig = {
             apiKey: "AIzaSyCekLRfgBi_HBJJmHLqsgj4b5II4CT6Iuw",
             authDomain: "store-2613b.firebaseapp.com",
             projectId: "store-2613b",
             storageBucket: "store-2613b.firebasestorage.app",
             messagingSenderId: "216192871587",
-            appId: "1:216192871587:web:431c15db165045d8c42316",
-            measurementId: "G-KLV8QB9TYV"
+            appId: "1:216192871587:web:431c15db165045d8c42316"
         };
 
-        // Firebase aur Database ko joda
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        let userLat, userLng;
+        let isLoginMode = false; // By default user register screen par hoga
 
-        // 🗺️ STEP 2 & 3: Live Location Logic
-        window.getUserLocation = function() {
-            const status = document.getElementById('status');
-            if (!navigator.geolocation) {
-                status.innerText = "Aapka browser location support nahi karta!";
-                return;
-            }
+        // Mode change karne ka logic (Register 🔄 Login)
+        window.toggleMode = function() {
+            isLoginMode = !isLoginMode;
+            const nameGroup = document.getElementById('nameGroup');
+            const addressGroup = document.getElementById('addressGroup');
+            const formTitle = document.getElementById('formTitle');
+            const formSubTitle = document.getElementById('formSubTitle');
+            const submitBtn = document.getElementById('submitBtn');
+            const toggleModeBtn = document.getElementById('toggleModeBtn');
 
-            status.innerText = "Location dhoodh raha hai... ⏱️";
-
-            navigator.geolocation.getCurrentPosition(async (position) => {
-                userLat = position.coords.latitude;
-                userLng = position.coords.longitude;
-                status.innerText = `Mila! Lat: ${userLat.toFixed(4)}, Lng: ${userLng.toFixed(4)}`;
+            if(isLoginMode) {
+                nameGroup.style.display = 'none';
+                addressGroup.style.display = 'none';
+                document.getElementById('userName').required = false;
+                document.getElementById('userAddress').required = false;
                 
-                // Location milte hi stores dhoondho
-                await findNearestStores(userLat, userLng);
-            }, (error) => {
-                status.innerText = "Location permission nahi mili! ❌";
-                alert("Location Error: " + error.message);
-            });
+                formTitle.innerText = "Welcome Back!";
+                formSubTitle.innerText = "Enter your registered number to login";
+                submitBtn.innerText = "Login Now";
+                toggleModeBtn.innerText = "New User? Create an Account";
+            } else {
+                nameGroup.style.display = 'block';
+                addressGroup.style.display = 'block';
+                document.getElementById('userName').required = true;
+                document.getElementById('userAddress').required = true;
+
+                formTitle.innerText = "Welcome to Delivery!";
+                formSubTitle.innerText = "Let's get your details for lightning-fast orders";
+                submitBtn.innerText = "Continue to Dashboard";
+                toggleModeBtn.innerText = "Already have an account? Login Here";
+            }
         }
 
-        // 🧮 Haversine Formula (Distance Calculation)
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Earth Radius in KM
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c; 
-        }
+        // Main Trigger Form Submit Hone Par
+        window.handleAuth = async function(event) {
+            event.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            const status = document.getElementById('status');
+            const phone = document.getElementById('userPhone').value.trim();
 
-        // 🏪 Database se Stores fetch karke filtering
-        async function findNearestStores(uLat, uLng) {
-            const storeListDiv = document.getElementById('storeList');
-            storeListDiv.innerText = "Aapke paas ke stores search ho rahe hain... 🔍";
+            submitBtn.disabled = true;
+            status.style.color = "#fff";
 
-            try {
-                const querySnapshot = await getDocs(collection(db, "stores"));
-                let stores = [];
+            if (isLoginMode) {
+                // =============== 🔑 LOGIN LOGIC ===============
+                status.innerText = "Checking database... ⏳";
 
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    
-                    // Lat aur Lng numbers hone chahiye calculation ke liye
-                    if(data.lat && data.lng) {
-                        const distance = calculateDistance(uLat, uLng, Number(data.lat), Number(data.lng));
-                        
-                        // 3 KM ke daayre wale stores filter karein
-                        if (distance <= 3) { 
-                            stores.push({ id: doc.id, ...data, distance: distance });
-                        }
+                try {
+                    // Firebase Query: Users collection me check karo yeh number hai ya nahi
+                    const q = query(collection(db, "users"), where("userPhone", "==", phone));
+                    const querySnapshot = await getDocs(q);
+
+                    if (querySnapshot.empty) {
+                        status.style.color = "#ff4a4a";
+                        status.innerText = "Error: Is number se koi account nahi mila! Pehle Register karein.";
+                        submitBtn.disabled = false;
+                    } else {
+                        // Agar user mil gaya toh uska data nikaalo
+                        let loggedInUser = null;
+                        querySnapshot.forEach((doc) => {
+                            loggedInUser = { id: doc.id, ...doc.data() };
+                        });
+
+                        status.style.color = "#00ff66";
+                        status.innerText = `Welcome back, ${loggedInUser.userName}! Loading dashboard... 🚀`;
+
+                        setTimeout(() => {
+                            window.location.href = `user_dashboard.html?uid=${loggedInUser.id}&name=${encodeURIComponent(loggedInUser.userName)}`;
+                        }, 1200);
                     }
-                });
-
-                // Pas wale ko sabse upar sort karo
-                stores.sort((a, b) => a.distance - b.distance);
-
-                if (stores.length === 0) {
-                    storeListDiv.innerText = "Afsos! 3km ke daayre me koi store nahi mila. 📍";
-                    return;
+                } catch (error) {
+                    status.style.color = "#ff4a4a";
+                    status.innerText = "Login Error: " + error.message;
+                    submitBtn.disabled = false;
                 }
 
-                storeListDiv.innerHTML = "";
-                stores.forEach(store => {
-                    let distText = store.distance < 1 ? 
-                        `${(store.distance * 1000).toFixed(0)} meters` : 
-                        `${store.distance.toFixed(2)} KM`;
+            } else {
+                // =============== 📝 REGISTER LOGIC ===============
+                const name = document.getElementById('userName').value.trim();
+                const address = document.getElementById('userAddress').value.trim();
+                
+                status.innerText = "Creating professional profile... ⏳";
 
-                    storeListDiv.innerHTML += `
-                        <div class="store-item">
-                            <div>
-                                <strong>${store.storeName}</strong><br>
-                                <small>Owner: ${store.ownerName}</small>
-                            </div>
-                            <div class="distance">${distText} door</div>
-                        </div>
-                    `;
-                });
+                try {
+                    // Ek chota check ki register karne wala number pehle se toh nahi hai
+                    const q = query(collection(db, "users"), where("userPhone", "==", phone));
+                    const checkSnap = await getDocs(q);
+                    if(!checkSnap.empty) {
+                        status.style.color = "#ff4a4a";
+                        status.innerText = "Yeh number pehle se registered hai! Login kijiye.";
+                        submitBtn.disabled = false;
+                        return;
+                    }
 
-            } catch (error) {
-                console.error(error);
-                alert("Firebase Error: " + error.message);
-                storeListDiv.innerText = "Database se connect karne me error aaya!";
+                    const docRef = await addDoc(collection(db, "users"), {
+                        userName: name,
+                        userPhone: phone,
+                        userAddress: address,
+                        createdAt: new Date().toISOString()
+                    });
+
+                    status.style.color = "#00ff66";
+                    status.innerText = "Registration Successful! Redirecting... 🚀";
+
+                    setTimeout(() => {
+                        window.location.href = `user_dashboard.html?uid=${docRef.id}&name=${encodeURIComponent(name)}`;
+                    }, 1200);
+
+                } catch (error) {
+                    status.style.color = "#ff4a4a";
+                    status.innerText = "Registration Error: " + error.message;
+                    submitBtn.disabled = false;
+                }
             }
         }
     </script>

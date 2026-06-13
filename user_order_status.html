@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Delivery - Track Your Order</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #0d2b45, #203c56, #3c5a78); 
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .tracking-card {
+            background: white;
+            color: #111;
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .brand-logo {
+            font-size: 24px;
+            font-weight: 900;
+            color: #f7d100; 
+            background: #1c1c1c;
+            padding: 5px 15px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .brand-logo span { color: #fff; }
+
+        h2 { margin: 0 0 10px 0; color: #0d2b45; font-size: 20px; }
+        .order-id { font-size: 12px; color: #7f7f7f; margin-bottom: 25px; font-weight: 600; }
+
+        /* Real-time Status Progress Bar Style */
+        .status-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            text-align: left;
+            margin: 20px 0;
+            padding-left: 10px;
+        }
+
+        .status-step {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            opacity: 0.3;
+            transition: all 0.3s ease;
+        }
+
+        .status-step.active {
+            opacity: 1;
+            font-weight: bold;
+        }
+
+        .status-dot {
+            width: 16px;
+            height: 16px;
+            background: #ccc;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .status-step.active .status-dot {
+            background: #0c9c0c;
+            box-shadow: 0 0 10px #00ff66;
+        }
+
+        .status-text { font-size: 15px; color: #333; }
+        .status-step.active .status-text { color: #0c9c0c; }
+
+        .bill-details {
+            border-top: 1px dashed #ccc;
+            margin-top: 20px;
+            padding-top: 15px;
+            text-align: left;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .btn-home {
+            background: #0d2b45;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            width: 100%;
+            margin-top: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            display: none; /* Sirf complete hone par dikhega */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="tracking-card">
+        <div class="brand-logo">Quick<span>delivery</span></div>
+        <h2>Live Order Tracking</h2>
+        <div class="order-id">Order ID: <span id="lblOrderId">Fetching...</span></div>
+
+        <div class="status-container">
+            <div id="stepPending" class="status-step">
+                <div class="status-dot"></div>
+                <div class="status-text">⏳ Order Sent (Waiting for Store approval)</div>
+            </div>
+
+            <div id="stepAccepted" class="status-step">
+                <div class="status-dot"></div>
+                <div class="status-text">🏪 Order Accepted (Dukan_dar saaman pack kar rha h)</div>
+            </div>
+
+            <div id="stepCompleted" class="status-step">
+                <div class="status-dot"></div>
+                <div class="status-text">🚀 Order Delivered Successfully!</div>
+            </div>
+        </div>
+
+        <div class="bill-details">
+            <div><strong>Store Hub:</strong> <span id="lblStoreName">Searching...</span></div>
+            <div style="margin-top: 5px;"><strong>Total Amount:</strong> <span style="color:#0c9c0c; font-weight:bold;">₹<span id="lblTotal">0</span></span></div>
+        </div>
+
+        <button id="btnHome" class="btn-home" onclick="goToDashboard()">Go Back To Dashboard</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCekLRfgBi_HBJJmHLqsgj4b5II4CT6Iuw",
+            authDomain: "store-2613b.firebaseapp.com",
+            projectId: "store-2613b",
+            storageBucket: "store-2613b.firebasestorage.app",
+            messagingSenderId: "216192871587",
+            appId: "1:216192871587:web:431c15db165045d8c42316"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // URL se Order ID (oid) nikalna
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('oid');
+
+        let userSavedName = "";
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if(!orderId) {
+                alert("No Order ID found!");
+                return;
+            }
+            document.getElementById('lblOrderId').innerText = orderId;
+
+            // 🚀 REAL-TIME SNAPSHOT OBSERVER FOR THIS ORDER
+            trackOrderLive();
+        });
+
+        function trackOrderLive() {
+            // Cloud Firestore me is specific order document ko live monitor karo
+            onSnapshot(doc(db, "orders", orderId), (docSnap) => {
+                if(!docSnap.exists()) {
+                    console.log("No such order document!");
+                    return;
+                }
+
+                const orderData = docSnap.data();
+                
+                // UI details fill karo
+                document.getElementById('lblStoreName').innerText = orderData.storeName;
+                document.getElementById('lblTotal').innerText = orderData.totalBill;
+                userSavedName = orderData.userName; // Cache name back navigation ke liye
+
+                // Status ke bases par classes active/deactive karo
+                const stepPending = document.getElementById('stepPending');
+                const stepAccepted = document.getElementById('stepAccepted');
+                const stepCompleted = document.getElementById('stepCompleted');
+                const btnHome = document.getElementById('btnHome');
+
+                // Reset all steps first
+                stepPending.classList.remove('active');
+                stepAccepted.classList.remove('active');
+                stepCompleted.classList.remove('active');
+
+                // 🚦 Conditional Check based on Firebase order status
+                if(orderData.status === "Pending") {
+                    stepPending.classList.add('active');
+                } 
+                else if(orderData.status === "Accepted") {
+                    stepPending.classList.add('active'); // Purana step bhi active rahega
+                    stepAccepted.classList.add('active');
+                } 
+                else if(orderData.status === "Completed") {
+                    stepPending.classList.add('active');
+                    stepAccepted.classList.add('active');
+                    stepCompleted.classList.add('active');
+                    
+                    // Delivery hone par dynamic dashboard return button show ho jaye
+                    btnHome.style.display = "block";
+                }
+            });
+        }
+
+        // Return back to shopping experience
+        window.goToDashboard = function() {
+            window.location.href = `user_dashboard.html?uid=${orderId}&name=${encodeURIComponent(userSavedName)}`;
+        }
+    </script>
+</body>
+</html>

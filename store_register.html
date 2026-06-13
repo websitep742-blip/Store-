@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Delivery - Store Partner Portal</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #0d2b45, #203c56, #3c5a78); 
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .brand-logo {
+            font-size: 32px;
+            font-weight: 900;
+            color: #f7d100; 
+            background: #1c1c1c;
+            padding: 5px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        .brand-logo span { color: #fff; }
+
+        .auth-card { 
+            background: white; 
+            padding: 35px 30px; 
+            border-radius: 24px; 
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15); 
+            width: 100%;
+            max-width: 450px; 
+            box-sizing: border-box;
+            border: 1px solid #eaeaea;
+            text-align: center;
+        }
+
+        h2 { margin: 0 0 8px 0; color: #1c1c1c; font-size: 22px; font-weight: 700; }
+        p { margin: 0 0 25px 0; color: #666; font-size: 14px; }
+
+        .form-group { margin-bottom: 16px; text-align: left; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; color: #333; font-size: 13px; }
+
+        input, textarea { 
+            width: 100%; 
+            padding: 12px; 
+            background: #f4f6f9;
+            border: 1px solid #e2e8f0; 
+            border-radius: 10px; 
+            box-sizing: border-box; 
+            font-size: 15px; 
+            color: #1a202c;
+            transition: all 0.2s ease;
+        }
+        input:focus, textarea:focus {
+            border-color: #f7d100;
+            background: #fff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(247, 209, 0, 0.2);
+        }
+        textarea { resize: none; height: 60px; }
+
+        .btn-brand { 
+            background: #1c1c1c; 
+            color: #f7d100; 
+            border: none; 
+            padding: 14px; 
+            font-size: 16px; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            font-weight: 700; 
+            width: 100%; 
+            margin-top: 10px; 
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+        }
+
+        .toggle-link {
+            margin-top: 18px;
+            font-size: 14px;
+            color: #0d2b45;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: underline;
+            display: inline-block;
+        }
+
+        #status { 
+            color: #fff; 
+            font-weight: 600; 
+            text-align: center; 
+            margin-top: 15px; 
+            font-size: 14px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="brand-logo">Quick<span>delivery Partner</span></div>
+
+    <div class="auth-card">
+        <h2 id="formTitle">Partner Registration</h2>
+        <p id="formSubTitle">Apni dukan ko hamare network se jodein</p>
+        
+        <form id="storeAuthForm" onsubmit="handleStoreAuth(event)">
+            <div class="form-group class-reg-only" id="storeNameGroup">
+                <label>🏪 STORE/DUKAN KA NAAM</label>
+                <input type="text" id="storeName" placeholder="e.g. Sharma Kirana Store">
+            </div>
+
+            <div class="form-group class-reg-only" id="ownerNameGroup">
+                <label>👤 OWNER KA NAAM</label>
+                <input type="text" id="ownerName" placeholder="e.g. Amit Sharma">
+            </div>
+
+            <div class="form-group">
+                <label>📞 MOBILE NUMBER</label>
+                <input type="tel" id="storePhone" placeholder="e.g. 9236099823" required>
+            </div>
+
+            <div class="form-group class-reg-only" id="emailGroup">
+                <label>✉️ EMAIL ID</label>
+                <input type="email" id="storeEmail" placeholder="e.g. sharmastore@gmail.com">
+            </div>
+
+            <div class="form-group class-reg-only" id="addressGroup">
+                <label>📍 STORE FULL ADDRESS</label>
+                <textarea id="storeAddress" placeholder="Gali No, Landmark, Area, Kanpur"></textarea>
+            </div>
+
+            <button type="submit" id="submitBtn">Register & Pin Location</button>
+        </form>
+
+        <div class="toggle-link" id="toggleModeBtn" onclick="toggleStoreMode()">Already a Partner? Login Here</div>
+        <p id="status"></p>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCekLRfgBi_HBJJmHLqsgj4b5II4CT6Iuw",
+            authDomain: "store-2613b.firebaseapp.com",
+            projectId: "store-2613b",
+            storageBucket: "store-2613b.firebasestorage.app",
+            messagingSenderId: "216192871587",
+            appId: "1:216192871587:web:431c15db165045d8c42316"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let isLoginMode = false;
+
+        window.toggleStoreMode = function() {
+            isLoginMode = !isLoginMode;
+            const regFields = document.querySelectorAll('.class-reg-only');
+            const formTitle = document.getElementById('formTitle');
+            const formSubTitle = document.getElementById('formSubTitle');
+            const submitBtn = document.getElementById('submitBtn');
+            const toggleModeBtn = document.getElementById('toggleModeBtn');
+
+            if(isLoginMode) {
+                regFields.forEach(f => f.style.display = 'none');
+                formTitle.innerText = "Partner Login";
+                formSubTitle.innerText = "Apne registered mobile number se dashboard kholein";
+                submitBtn.innerText = "Login to Dashboard";
+                toggleModeBtn.innerText = "New Partner? Register Your Store";
+            } else {
+                regFields.forEach(f => f.style.display = 'block');
+                formTitle.innerText = "Partner Registration";
+                formSubTitle.innerText = "Apni dukan ko hamare network se jodein";
+                submitBtn.innerText = "Register & Pin Location";
+                toggleModeBtn.innerText = "Already a Partner? Login Here";
+            }
+        }
+
+        window.handleStoreAuth = async function(event) {
+            event.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            const status = document.getElementById('status');
+            const phone = document.getElementById('storePhone').value.trim();
+
+            submitBtn.disabled = true;
+            status.style.color = "#fff";
+
+            if(isLoginMode) {
+                // =============== 🔑 STORE LOGIN ===============
+                status.innerText = "Verifying partner account... ⏳";
+                try {
+                    const q = query(collection(db, "stores"), where("phone", "==", phone));
+                    const querySnapshot = await getDocs(q);
+
+                    if(querySnapshot.empty) {
+                        status.style.color = "#ff4a4a";
+                        status.innerText = "Dukan registered nahi hai! Pehle Register karein.";
+                        submitBtn.disabled = false;
+                    } else {
+                        let storeData = null;
+                        querySnapshot.forEach(doc => { storeData = { id: doc.id, ...doc.data() }; });
+                        status.style.color = "#00ff66";
+                        status.innerText = `Welcome Back, ${storeData.storeName}! 🚀`;
+                        
+                        setTimeout(() => {
+                            window.location.href = `store_dashboard.html?sid=${storeData.id}`;
+                        }, 1200);
+                    }
+                } catch(err) {
+                    status.style.color = "#ff4a4a";
+                    status.innerText = "Error: " + err.message;
+                    submitBtn.disabled = false;
+                }
+            } else {
+                // =============== 📝 STORE REGISTER ===============
+                if(!navigator.geolocation) {
+                    status.style.color = "#ff4a4a";
+                    status.innerText = "Aapka device GPS support nahi karta!";
+                    submitBtn.disabled = false;
+                    return;
+                }
+
+                status.innerText = "Fetching live store GPS coordinates... 📍";
+
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+
+                    const sName = document.getElementById('storeName').value.trim();
+                    const oName = document.getElementById('ownerName').value.trim();
+                    const email = document.getElementById('storeEmail').value.trim();
+                    const address = document.getElementById('storeAddress').value.trim();
+
+                    status.innerText = "Saving store credentials to cloud... ⏳";
+
+                    try {
+                        // Check if number already registered
+                        const q = query(collection(db, "stores"), where("phone", "==", phone));
+                        const checkSnap = await getDocs(q);
+                        if(!checkSnap.empty) {
+                            status.style.color = "#ff4a4a";
+                            status.innerText = "Yeh phone number pehle se registered hai!";
+                            submitBtn.disabled = false;
+                            return;
+                        }
+
+                        const docRef = await addDoc(collection(db, "stores"), {
+                            storeName: sName,
+                            ownerName: oName,
+                            phone: phone,
+                            email: email,
+                            storeAddress: address,
+                            lat: Number(lat),
+                            lng: Number(lng),
+                            createdAt: new Date().toISOString()
+                        });
+
+                        status.style.color = "#00ff66";
+                        status.innerText = "Store Registered! Opening Dashboard... 🎉";
+
+                        setTimeout(() => {
+                            window.location.href = `store_dashboard.html?sid=${docRef.id}`;
+                        }, 1200);
+
+                    } catch(err) {
+                        status.style.color = "#ff4a4a";
+                        status.innerText = "Firebase Error: " + err.message;
+                        submitBtn.disabled = false;
+                    }
+                }, (error) => {
+                    status.style.color = "#ff4a4a";
+                    status.innerText = "GPS Error: Registration ke liye location compulsory hai! ❌";
+                    submitBtn.disabled = false;
+                });
+            }
+        }
+    </script>
+</body>
+</html>

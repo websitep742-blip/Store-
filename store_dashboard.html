@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Partner - Advanced Dashboard</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; 
+            padding: 15px; 
+            background: linear-gradient(135deg, #0b1e36, #1f3754, #2e4b6e); 
+            color: white;
+            min-height: 100vh;
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;}
+        h1 { margin: 0; font-size: 22px; color: #f7d100; }
+        .store-id-tag { font-size: 12px; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 6px; }
+
+        /* Analytics Matrix Grid */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            padding: 15px 12px;
+            border-radius: 14px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .stat-card span { display: block; font-size: 11px; font-weight: 600; opacity: 0.7; text-transform: uppercase; margin-bottom: 5px;}
+        .stat-card strong { font-size: 18px; color: #00e0ff; }
+
+        /* Live Incoming Orders Panel */
+        .orders-panel {
+            background: rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 15px;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .panel-title { font-size: 16px; font-weight: 800; color: #ffdd57; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;}
+        
+        .live-dot { width: 10px; height: 10px; background: #00ff66; border-radius: 50%; box-shadow: 0 0 10px #00ff66; display: inline-block; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        /* Order Live Cards */
+        .order-card {
+            background: white;
+            color: #111;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+            border-left: 5px solid #ffc107;
+        }
+
+        .order-card.accepted { border-left-color: #0c9c0c; }
+
+        .order-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+        .customer-name { font-weight: bold; font-size: 15px; color: #0b1e36; }
+        .bill-amount { font-weight: bold; color: #0c9c0c; font-size: 16px; }
+
+        .items-box { background: #f1f3f6; padding: 8px; border-radius: 8px; font-size: 12px; margin: 8px 0; }
+
+        /* 3D Dashboard Interaction Buttons */
+        .action-btn {
+            background: linear-gradient(180deg, #0c9c0c, #087308); color: white; border: none; padding: 10px;
+            border-radius: 8px; font-weight: bold; cursor: pointer; width: 48%; box-shadow: 0 3px 0 #054a05;
+        }
+        .action-btn.complete { background: linear-gradient(180deg, #00e0ff, #007bff); box-shadow: 0 3px 0 #0056b3; }
+        .action-btn:active { transform: translateY(2px); box-shadow: none; }
+
+        .map-link { color: #007bff; font-weight: bold; text-decoration: none; font-size: 13px; display: inline-block; margin-top: 5px;}
+        
+        .alarm-warning { background: #ff4a4a; color: white; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-weight: bold; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h1 id="lblStoreName">Loading Hub...</h1>
+            <span class="store-id-tag">ID: <span id="lblStoreId">None</span></span>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 11px; opacity: 0.7;">Live Operations</div>
+            <strong style="color: #00ff66;">ACTIVE</strong>
+        </div>
+    </div>
+
+    <div id="alarmAlert" class="alarm-warning">🚨 NEW INCOMING ORDER RECOVERY! ALARM RINGING...</div>
+
+    <div class="analytics-grid">
+        <div class="stat-card"><span>Total Income</span><strong id="statIncome">₹0</strong></div>
+        <div class="stat-card"><span>Total Orders</span><strong id="statTotalOrders">0</strong></div>
+        <div class="stat-card"><span>Today Orders</span><strong id="statTodayOrders">0</strong></div>
+        <div class="stat-card"><span>Week Orders</span><strong id="statWeekOrders">0</strong></div>
+    </div>
+
+    <div class="orders-panel">
+        <div class="panel-title">
+            <span>📦 Incoming Realtime Orders</span>
+            <span class="live-dot"></span>
+        </div>
+        <div id="ordersContainer">No active orders found for this hub.</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, collection, query, where, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCekLRfgBi_HBJJmHLqsgj4b5II4CT6Iuw",
+            authDomain: "store-2613b.firebaseapp.com",
+            projectId: "store-2613b",
+            storageBucket: "store-2613b.firebasestorage.app",
+            messagingSenderId: "216192871587",
+            appId: "1:216192871587:web:431c15db165045d8c42316"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentStoreId = urlParams.get('sid');
+
+        // Professional Audio API for Notification Alarm
+        // Is URL me public beep sound h jo ring bajayega
+        const alarmAudio = new Audio("https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg");
+        alarmAudio.loop = true; 
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            if(!currentStoreId) {
+                alert("Store Session Expired! Please login.");
+                return;
+            }
+            document.getElementById('lblStoreId').innerText = currentStoreId;
+            
+            // Load Store Header Name
+            const storeDoc = await getDoc(doc(db, "stores", currentStoreId));
+            if(storeDoc.exists()) {
+                document.getElementById('lblStoreName').innerText = storeDoc.data().storeName;
+            }
+
+            // Start Real-time Snapshot Tracking for Orders
+            listenToLiveOrders();
+        });
+
+        function listenToLiveOrders() {
+            const q = query(collection(db, "orders"), where("storeId", "==", currentStoreId));
+            
+            // onSnapshot se bina refresh kiye data automatic sink hoga cloud se
+            onSnapshot(q, (snapshot) => {
+                let totalIncome = 0;
+                let totalCount = 0;
+                let todayCount = 0;
+                let weekCount = 0;
+                let activeCardsHtml = "";
+                let triggerAlarm = false;
+
+                const now = new Date();
+
+                snapshot.forEach((docSnap) => {
+                    const order = docSnap.data();
+                    const orderId = docSnap.id;
+                    const orderDate = new Date(order.createdAt);
+
+                    // --- Calculate Analytics Matrix ---
+                    if(order.status === "Completed") {
+                        totalIncome += Number(order.totalBill);
+                    }
+                    totalCount++;
+
+                    // Today vs Week checks
+                    const diffTime = Math.abs(now - orderDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    if(orderDate.toDateString() === now.toDateString()) todayCount++;
+                    if(diffDays <= 7) weekCount++;
+
+                    // --- Filter Pending/Accepted Orders to display ---
+                    if(order.status === "Pending" || order.status === "Accepted") {
+                        if(order.status === "Pending") triggerAlarm = true; // Alarm trigger trigger
+
+                        let itemsDescription = order.items.map(i => `${i.name} (x${i.qty})`).join(', ');
+                        
+                        // Google Map URL user ki absolute track location fetch karne ke liye
+                        let mapUrl = `https://www.google.com/maps/search/?api=1&query=${order.userLat},${order.userLng}`;
+
+                        activeCardsHtml += `
+                            <div class="order-card ${order.status === 'Accepted' ? 'accepted' : ''}">
+                                <div class="order-row">
+                                    <span class="customer-name">👤 ${order.userName}</span>
+                                    <span class="bill-amount">₹${order.totalBill}</span>
+                                </div>
+                                <div style="font-size:12px; color:#555;">📞 Phone: ${order.userPhone}</div>
+                                <div style="font-size:12px; color:#555; margin-top:3px;">📍 Address: ${order.userAddress}</div>
+                                <a href="${mapUrl}" target="_blank" class="map-link">🌐 View User Live Location on Map</a>
+                                <div class="items-box"><strong>Items:</strong> ${itemsDescription}</div>
+                                <div class="order-row" style="margin-top:10px;">
+                                    <span>Status: <strong style="color:${order.status === 'Accepted' ? 'blue':'orange'}">${order.status}</strong></span>
+                                    ${order.status === 'Pending' ? 
+                                        `<button class="action-btn" onclick="updateOrderStatus('${orderId}', 'Accepted')">Accept Order</button>` :
+                                        `<button class="action-btn complete" onclick="updateOrderStatus('${orderId}', 'Completed')">Complete Delivery</button>`
+                                    }
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                // Update UI Counters
+                document.getElementById('statIncome').innerText = "₹" + totalIncome;
+                document.getElementById('statTotalOrders').innerText = totalCount;
+                document.getElementById('statTodayOrders').innerText = todayCount;
+                document.getElementById('statWeekOrders').innerText = weekCount;
+
+                if(activeCardsHtml !== "") {
+                    document.getElementById('ordersContainer').innerHTML = activeCardsHtml;
+                } else {
+                    document.getElementById('ordersContainer').innerText = "No active pending orders right now.";
+                }
+
+                // Handle Audio Siren Engine
+                const alertBox = document.getElementById('alarmAlert');
+                if(triggerAlarm) {
+                    alertBox.style.display = "block";
+                    alarmAudio.play().catch(e => console.log("Audio play blocked until interaction."));
+                } else {
+                    alertBox.style.display = "none";
+                    alarmAudio.pause();
+                }
+            });
+        }
+
+        // Status Handler (Accept & Complete Logic)
+        window.updateOrderStatus = async function(orderId, newStatus) {
+            try {
+                const orderRef = doc(db, "orders", orderId);
+                await updateDoc(orderRef, { status: newStatus });
+                
+                // Delivery complete hote hi temporary stop alarm sound loop trigger
+                if(newStatus === "Completed") {
+                    alarmAudio.pause();
+                    alert("Delivery Process Completed Successfully!");
+                }
+            } catch(err) {
+                alert("Error updating order: " + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
